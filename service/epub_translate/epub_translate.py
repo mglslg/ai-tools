@@ -4,6 +4,33 @@ import openai
 import os
 from bs4 import BeautifulSoup
 
+def convert_epub_to_html(input_file, output_file):
+    try:
+        # Load the epub file
+        book = epub.read_epub(input_file)
+    except epub.EpubException as e:
+        print(f"Error loading EPUB file: {e}")
+        return
+    
+    # Create a new HTML file
+    with open(output_file, 'w', encoding='utf-8-sig') as html_file:  # Use 'utf-8-sig' to include BOM
+        # Iterate through each item in the epub
+        for item in book.get_items():
+            # Check if the item is a document
+            if item.get_type() == ebooklib.ITEM_DOCUMENT:
+                # Get the content of the document
+                content = item.get_body_content()
+                
+                # Decode the content to ensure proper character handling
+                decoded_content = content.decode('utf-8', errors='replace')
+                
+                # Parse the content with BeautifulSoup
+                soup = BeautifulSoup(decoded_content, 'html.parser')
+                
+                # Write the prettified HTML to the output file
+                html_file.write(soup.prettify())
+
+
 def read_epub(input_file,output_file):
       # Load the epub file
     book = epub.read_epub(input_file)
@@ -82,8 +109,37 @@ def epub_token_cost(total_tokens):
     return total_cost
 
 
+def replace_epub_text(epub_file, output_file):
+    # Read the epub file
+    book = epub.read_epub(epub_file)
+
+    # Initialize a counter for the placeholder
+    placeholder_counter = 1
+
+    # Iterate through all the items in the epub
+    for item in book.get_items():
+        if item.get_type() == ebooklib.ITEM_DOCUMENT:
+            # Parse the content with BeautifulSoup
+            soup = BeautifulSoup(item.get_body_content(), 'html.parser')
+
+            # Replace text with numbered placeholders
+            for tag in soup.find_all(text=True):
+                if tag.strip():  # Only replace non-empty text
+                    print(f"Original text {placeholder_counter}: <{tag.parent.name}>{tag.strip()}</{tag.parent.name}>")  # Print the original text wrapped in its parent tag
+                    placeholder = f"【待翻译内容{placeholder_counter}】"
+                    tag.replace_with(placeholder)
+                    placeholder_counter += 1
+
+            # Update the item content with placeholders
+            item.set_content(str(soup).encode('utf-8'))
+
+    # Write the modified content to a new epub file
+    epub.write_epub(output_file, book, {})
+
 
 if __name__ == "__main__":
-    input_file = '/Users/solongoj/temp/oldman.epub'
-    output_file = '/Users/solongoj/temp/oldman.epub'
-    read_epub(input_file, output_file)
+    input_file = '/Users/solongoj/temp/ink.epub'
+    output_file = '/Users/solongoj/temp/ink_replace.epub'
+    # read_epub(input_file, output_file)
+    # convert_epub_to_html(input_file,output_file)
+    replace_epub_text(input_file,output_file)
